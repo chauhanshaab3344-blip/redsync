@@ -77,6 +77,7 @@ video{
 
 <body>
 <header>❤️ RedSync ULTIMATE</header>
+
 <div class="container">
 
 <div class="card">
@@ -127,12 +128,11 @@ const firebaseConfig = {
   messagingSenderId: "449210595883",
   appId: "1:449210595883:web:866765e6211dd21790086e"
 };
-
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 // ========================
-// WebRTC Setup with STUN/TURN
+// WebRTC Setup
 // ========================
 let roomId;
 let localStream;
@@ -143,13 +143,11 @@ let pc = new RTCPeerConnection({
   ]
 });
 
-let localVideo = document.getElementById("localVideo");
-let remoteVideo = document.getElementById("remoteVideo");
-
+const localVideo = document.getElementById("localVideo");
+const remoteVideo = document.getElementById("remoteVideo");
 const chatBox = document.getElementById("chatBox");
 const chatInput = document.getElementById("chatInput");
 const typingIndicator = document.getElementById("typingIndicator");
-const userCount = document.getElementById("userCount");
 
 // ========================
 // Camera / Screen / Voice
@@ -189,103 +187,108 @@ function voiceOnly(){
   });
 }
 
-// ========================
-// Create / Join Room
-// ========================
-async function createRoom(){
-  roomId = Math.floor(100000+Math.random()*900000).toString();
-  roomInput.value = roomId;
-  const roomRef = db.collection("rooms").doc(roomId);
-  roomStatus.innerText = "Room Created: " + roomId;
-
-  const offer = await pc.createOffer();
-  await pc.setLocalDescription(offer);
-  await roomRef.set({offer: {type: offer.type, sdp: offer.sdp}, candidates: []});
-
-  roomRef.onSnapshot(async snapshot=>{
-    const data = snapshot.data();
-    if(!pc.currentRemoteDescription && data && data.answer){
-      await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-    }
-    if(data && data.candidates){
-      data.candidates.forEach(async c=>{
-        try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch{}
-      });
-    }
-  });
-
-  pc.onicecandidate = e=>{
-    if(!e.candidate) return;
-    roomRef.update({candidates: firebase.firestore.FieldValue.arrayUnion(e.candidate.toJSON())});
-  };
-}
-
-async function joinRoom(){
-  roomId = roomInput.value;
-  const roomRef = db.collection("rooms").doc(roomId);
-  const roomData = (await roomRef.get()).data();
-  roomStatus.innerText = "Joined Room: " + roomId;
-
-  await pc.setRemoteDescription(new RTCSessionDescription(roomData.offer));
-  const answer = await pc.createAnswer();
-  await pc.setLocalDescription(answer);
-  await roomRef.update({answer: {type: answer.type, sdp: answer.sdp}});
-
-  roomRef.onSnapshot(snapshot=>{
-    const data = snapshot.data();
-    if(data && data.candidates){
-      data.candidates.forEach(async c=>{
-        try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch{}
-      });
-    }
-  });
-
-  pc.onicecandidate = e=>{
-    if(!e.candidate) return;
-    roomRef.update({candidates: firebase.firestore.FieldValue.arrayUnion(e.candidate.toJSON())});
-  };
-}
-
-// ========================
-// Remote video
-// ========================
-pc.ontrack = e=>{
+// Receive remote track
+pc.ontrack = e => {
   remoteVideo.srcObject = e.streams[0];
 };
 
 // ========================
-// Chat
+// Rooms & Chat
 // ========================
+function createRoom(){
+  roomId = Math.floor(100000 + Math.random()*900000).toString();
+  roomInput.value = roomId;
+  roomStatus.innerText = "Room Created: " + roomId;
+  setupRoom(roomId, true);
+}
+
+function joinRoom(){
+  roomId = roomInput.value;
+  roomStatus.innerText = "Joined Room: " + roomId;
+  setupRoom(roomId, false);
+}
+
+async function setupRoom(id, isCreator){
+  const roomRef = db.collection("rooms").doc(id);
+
+  pc.onicecandidate = e=>{
+    if(!e.candidate) return;
+    roomRef.update({candidates: firebase.firestore.FieldValue.arrayUnion(e.candidate.toJSON())});
+  };
+
+  if(isCreator){
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await roomRef.set({offer: {type: offer.type, sdp: offer.sdp}, candidates: []});
+  } else {
+    const roomSnapshot = await roomRef.get();
+    const roomData = roomSnapshot.data();
+    await pc.setRemoteDescription(new RTCSessionDescription(roomData.offer));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    roomRef.update({answer: {type: answer.type, sdp: answer.sdp}});
+    if(roomData.candidates) {
+      roomData.candidates.forEach(async c=>{
+        await pc.addIceCandidate(new RTCIceCandidate(c));
+      });
+    }
+  }
+
+  roomRef.onSnapshot(snapshot=>{
+    const data = snapshot.data();
+    if(!data) return;
+    if(data.answer && isCreator && !pc.currentRemoteDescription){
+      pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+    }
+    if(data.candidates){
+      data.candidates.forEach(async c=>{
+        await pc.addIceCandidate(new RTCIceCandidate(c));
+      });
+    }
+    if(data.typing){
+      typingIndicator.innerText = "Friend is typing...";
+      setTimeout(()=>typingIndicator.innerText="",1000);
+    }
+    if(data.movie){
+      if(data.movie.action==="play"){
+        moviePlayer.currentTime = data.movie.time;
+        moviePlayer.play();
+      }
+      if(data.movie.action==="pause"){
+        moviePlayer.currentTime = data.movie.time;
+        moviePlayer.pause();
+      }
+    }
+  });
+
+  listenChat();
+}
+
 function sendMessage(){
-  const msg = chatInput.value;
-  db.collection("rooms").doc(roomId).collection("chat").add({
-    text: msg,
+  if(!chatInput.value) return;
+  db.collection("rooms").doc(roomId)
+  .collection("chat").add({
+    text: chatInput.value,
     time: Date.now()
   });
-  chatInput.value = "";
+  chatInput.value="";
 }
 
 function listenChat(){
-  db.collection("rooms").doc(roomId).collection("chat")
-    .orderBy("time")
-    .onSnapshot(snapshot=>{
-      chatBox.innerHTML = "";
-      snapshot.forEach(doc=>{
-        chatBox.innerHTML += "<p>"+doc.data().text+"</p>";
-      });
+  db.collection("rooms").doc(roomId)
+  .collection("chat")
+  .orderBy("time")
+  .onSnapshot(snapshot=>{
+    chatBox.innerHTML="";
+    snapshot.forEach(doc=>{
+      chatBox.innerHTML += "<p>"+doc.data().text+"</p>";
     });
+  });
 }
 
 function typingStatus(){
   db.collection("rooms").doc(roomId).set({typing:true},{merge:true});
 }
-
-db.collection("rooms").doc(roomId).onSnapshot(doc=>{
-  if(doc.data()?.typing){
-    typingIndicator.innerText="Friend is typing...";
-    setTimeout(()=>typingIndicator.innerText="",1000);
-  }
-});
 
 // ========================
 // Watch Together
@@ -293,24 +296,15 @@ db.collection("rooms").doc(roomId).onSnapshot(doc=>{
 const moviePlayer = document.getElementById("moviePlayer");
 function loadMovie(e){
   moviePlayer.src = URL.createObjectURL(e.target.files[0]);
+  db.collection("rooms").doc(roomId).set({movie:{action:"load", time:0}},{merge:true});
 }
 
 moviePlayer.onplay = ()=>{
-  db.collection("rooms").doc(roomId).set({movie:"play", time:moviePlayer.currentTime},{merge:true});
+  db.collection("rooms").doc(roomId).set({movie:{action:"play", time:moviePlayer.currentTime}},{merge:true});
 };
 moviePlayer.onpause = ()=>{
-  db.collection("rooms").doc(roomId).set({movie:"pause", time:moviePlayer.currentTime},{merge:true});
+  db.collection("rooms").doc(roomId).set({movie:{action:"pause", time:moviePlayer.currentTime}},{merge:true});
 };
-
-db.collection("rooms").doc(roomId).onSnapshot(doc=>{
-  const d = doc.data();
-  if(!d) return;
-  if(d.movie==="play"){ moviePlayer.currentTime = d.time; moviePlayer.play(); }
-  if(d.movie==="pause"){ moviePlayer.currentTime = d.time; moviePlayer.pause(); }
-});
-
-// Start chat listener
-listenChat();
 </script>
 </body>
 </html>
