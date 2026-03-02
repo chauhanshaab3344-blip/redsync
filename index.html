@@ -95,7 +95,7 @@ video{
 <video id="remoteVideo" autoplay playsinline></video>
 </div>
 <button onclick="startCamera()">Start Camera</button>
-<button onclick="shareScreen()">Share Screen</button>
+<button onclick="shareScreen()">Share Screen (Desktop Only)</button>
 <button onclick="voiceOnly()">Voice Only</button>
 </div>
 
@@ -116,7 +116,9 @@ video{
 </div>
 
 <script>
-// 🔥 Firebase Config
+// ========================
+// Firebase Config
+// ========================
 const firebaseConfig = {
   apiKey: "AIzaSyD-M1qJ4NDkb9_CTNjCg9afEj-VyD1Nugs",
   authDomain: "red-sync-2f00e.firebaseapp.com",
@@ -130,22 +132,20 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 // ========================
-// WebRTC with STUN
+// WebRTC Setup with STUN/TURN
 // ========================
 let roomId;
 let localStream;
 let pc = new RTCPeerConnection({
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
-    // Optional TURN server (for networks that block P2P)
-    // { urls: "turn:TURN_SERVER_URL", username: "USER", credential: "PASS" }
+    { urls: "turn:turn.anyfirewall.com:443?transport=tcp", username: "webrtc", credential: "webrtc" }
   ]
 });
 
 let localVideo = document.getElementById("localVideo");
 let remoteVideo = document.getElementById("remoteVideo");
 
-// Chat
 const chatBox = document.getElementById("chatBox");
 const chatInput = document.getElementById("chatInput");
 const typingIndicator = document.getElementById("typingIndicator");
@@ -164,14 +164,18 @@ function startCamera(){
 }
 
 function shareScreen(){
-  navigator.mediaDevices.getDisplayMedia({video:true})
-  .then(stream=>{
-    localStream = stream;
-    localVideo.srcObject = stream;
-    pc.getSenders().forEach(sender=>{
-      if(sender.track.kind==="video") sender.replaceTrack(stream.getVideoTracks()[0]);
-    });
-  });
+  if(navigator.mediaDevices.getDisplayMedia){
+    navigator.mediaDevices.getDisplayMedia({video:true})
+    .then(stream=>{
+      localStream = stream;
+      localVideo.srcObject = stream;
+      pc.getSenders().forEach(sender=>{
+        if(sender.track.kind==="video") sender.replaceTrack(stream.getVideoTracks()[0]);
+      });
+    }).catch(e=>alert("Screenshare works on desktop only"));
+  }else{
+    alert("Screenshare not supported on mobile");
+  }
 }
 
 function voiceOnly(){
@@ -196,7 +200,7 @@ async function createRoom(){
 
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
-  await roomRef.set({offer: {type: offer.type, sdp: offer.sdp}});
+  await roomRef.set({offer: {type: offer.type, sdp: offer.sdp}, candidates: []});
 
   roomRef.onSnapshot(async snapshot=>{
     const data = snapshot.data();
