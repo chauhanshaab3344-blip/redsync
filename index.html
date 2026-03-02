@@ -1,45 +1,93 @@
-<!DOCTYPE html>
+  <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RedSync Ultimate</title>
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
 <style>
-body {margin:0;font-family:Arial;color:white;background:linear-gradient(135deg,#1a0000,#330000);}
-header{background:#8b0000;padding:15px;text-align:center;font-size:22px;font-weight:bold;}
+body{
+  margin:0;
+  font-family:Arial;
+  background:linear-gradient(135deg,#1a0000,#330000);
+  color:white;
+}
+header{
+  background:#8b0000;
+  padding:15px;
+  text-align:center;
+  font-size:22px;
+  font-weight:bold;
+}
 .container{padding:20px;}
-.card{background:rgba(255,0,0,0.08);backdrop-filter:blur(15px);border:1px solid rgba(255,0,0,0.3);padding:20px;border-radius:15px;margin-bottom:20px;box-shadow:0 0 25px rgba(255,0,0,0.4);}
-button{padding:10px 15px;border:none;border-radius:8px;background:#cc0000;color:white;cursor:pointer;margin:5px 0;}
-input{padding:10px;border-radius:8px;border:none;margin:5px 0;}
-video{width:48%;background:black;border-radius:10px;}
-.video-area{display:flex;gap:10px;flex-wrap:wrap;}
-.chat-box{height:180px;overflow-y:auto;background:black;padding:10px;border-radius:10px;margin-bottom:10px;}
-.status{font-size:14px;color:#ff8080;}
-@media(max-width:768px){video{width:100%;}}
+.card{
+  background:rgba(255,0,0,0.08);
+  backdrop-filter:blur(15px);
+  border:1px solid rgba(255,0,0,0.3);
+  padding:20px;
+  border-radius:15px;
+  margin-bottom:20px;
+  box-shadow:0 0 25px rgba(255,0,0,0.4);
+}
+button{
+  padding:10px 15px;
+  border:none;
+  border-radius:8px;
+  background:#cc0000;
+  color:white;
+  cursor:pointer;
+  margin:5px 0;
+}
+input{
+  padding:10px;
+  border-radius:8px;
+  border:none;
+  margin:5px 0;
+}
+video{
+  width:48%;
+  background:black;
+  border-radius:10px;
+}
+.video-area{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.chat-box{
+  height:180px;
+  overflow-y:auto;
+  background:black;
+  padding:10px;
+  border-radius:10px;
+  margin-bottom:10px;
+}
+.status{
+  font-size:14px;
+  color:#ff8080;
+}
+@media(max-width:768px){
+  video{width:100%;}
+}
 </style>
 </head>
+
 <body>
 <header>❤️ RedSync ULTIMATE</header>
-
 <div class="container">
 
-<!-- Room -->
 <div class="card">
 <h3>🏠 Room</h3>
 <button onclick="createRoom()">Create Room</button><br>
 <input id="roomInput" placeholder="Enter PIN">
-<input id="roomPass" placeholder="Room Password">
-<button onclick="joinRoom()">Join</button>
+<button onclick="joinRoom()">Join Room</button>
 <p id="roomStatus"></p>
 <p class="status" id="userCount"></p>
 </div>
 
-<!-- Video / Screen -->
 <div class="card">
 <h3>🎥 Video / Screen</h3>
 <div class="video-area">
@@ -51,7 +99,6 @@ video{width:48%;background:black;border-radius:10px;}
 <button onclick="voiceOnly()">Voice Only</button>
 </div>
 
-<!-- Chat -->
 <div class="card">
 <h3>💬 Chat</h3>
 <div class="chat-box" id="chatBox"></div>
@@ -60,21 +107,16 @@ video{width:48%;background:black;border-radius:10px;}
 <p class="status" id="typingIndicator"></p>
 </div>
 
-<!-- Watch Together -->
 <div class="card">
 <h3>🎬 Watch Together</h3>
-<p>Paste video URL:</p>
-<input id="videoURL" placeholder="Enter video URL (MP4)">
-<button onclick="loadMovieURL()">Load Online Video</button>
-<p style="text-align:center;">OR</p>
-<input type="file" accept="video/*" onchange="loadMovieFile(event)">
 <video id="moviePlayer" controls></video>
+<input type="file" accept="video/*" onchange="loadMovie(event)">
 </div>
 
 </div>
 
 <script>
-// Firebase config
+// 🔥 Firebase Config (Your provided one)
 const firebaseConfig = {
   apiKey: "AIzaSyD-M1qJ4NDkb9_CTNjCg9afEj-VyD1Nugs",
   authDomain: "red-sync-2f00e.firebaseapp.com",
@@ -83,151 +125,182 @@ const firebaseConfig = {
   messagingSenderId: "449210595883",
   appId: "1:449210595883:web:866765e6211dd21790086e"
 };
+
 firebase.initializeApp(firebaseConfig);
-const db=firebase.firestore();
+const db = firebase.firestore();
 
-let roomId=null;
-let localStream=null;
-let pc=new RTCPeerConnection();
+// WebRTC Setup
+let roomId;
+let localStream;
+let pc = new RTCPeerConnection();
+let remoteVideo = document.getElementById("remoteVideo");
+let localVideo = document.getElementById("localVideo");
 
-// ROOM
-function createRoom(){
-  roomId=Math.floor(100000+Math.random()*900000).toString();
-  document.getElementById("roomInput").value=roomId;
-  document.getElementById("roomStatus").innerText="Room Created: "+roomId;
-  db.collection("rooms").doc(roomId).set({createdAt:Date.now()});
-}
+// Chat
+const chatBox = document.getElementById("chatBox");
+const chatInput = document.getElementById("chatInput");
+const typingIndicator = document.getElementById("typingIndicator");
 
-function joinRoom(){
-  roomId=document.getElementById("roomInput").value;
-  if(!roomId){ alert("Enter Room PIN"); return; }
-  document.getElementById("roomStatus").innerText="Joined: "+roomId;
-  listenChat();
-  listenMovieSync();
-  setupCall();
-}
+// User count
+const userCount = document.getElementById("userCount");
 
-// CHAT
-function sendMessage(){
-  if(!roomId) return;
-  const msg=document.getElementById("chatInput").value;
-  const username="User"+Math.floor(Math.random()*1000); // simple random username
-  db.collection("rooms").doc(roomId).collection("chat").add({
-    text: username+": "+msg,
-    time: Date.now()
-  });
-  document.getElementById("chatInput").value="";
-}
-
-function listenChat(){
-  if(!roomId) return;
-  db.collection("rooms").doc(roomId).collection("chat")
-    .orderBy("time")
-    .onSnapshot(snapshot=>{
-      const chatBox=document.getElementById("chatBox");
-      chatBox.innerHTML="";
-      snapshot.forEach(doc=>{ chatBox.innerHTML+="<p>"+doc.data().text+"</p>"; });
-    });
-}
-
-function typingStatus(){
-  if(!roomId) return;
-  db.collection("rooms").doc(roomId).set({typing:true},{merge:true});
-  setTimeout(()=>document.getElementById("typingIndicator").innerText="",1000);
-}
-
-// WATCH TOGETHER
-function loadMovieFile(e){ 
-  document.getElementById("moviePlayer").src=URL.createObjectURL(e.target.files[0]);
-  db.collection("rooms").doc(roomId).set({
-    movieAction:"load",
-    movieSrc:"file",
-    time:0
-  }, {merge:true});
-}
-
-function loadMovieURL(){
-  const url=document.getElementById("videoURL").value;
-  if(!url) return alert("Enter video URL");
-  document.getElementById("moviePlayer").src=url;
-  db.collection("rooms").doc(roomId).set({
-    movieAction:"load",
-    movieSrc:url,
-    time:0
-  }, {merge:true});
-}
-
-function listenMovieSync(){
-  if(!roomId) return;
-  db.collection("rooms").doc(roomId).onSnapshot(doc=>{
-    const d=doc.data(); if(!d) return;
-    const movie=document.getElementById("moviePlayer");
-    if(d.movieAction==="load"){ movie.src=d.movieSrc==="file"?movie.src:d.movieSrc; movie.currentTime=d.time; }
-    if(d.movieAction==="play"){ movie.currentTime=d.time; movie.play(); }
-    if(d.movieAction==="pause"){ movie.currentTime=d.time; movie.pause(); }
-  });
-}
-
-// VIDEO / SCREEN
+// ========================
+// Camera / Screen / Voice
+// ========================
 function startCamera(){
   navigator.mediaDevices.getUserMedia({video:true,audio:true})
-    .then(stream=>{
-      localVideo.srcObject=stream;
-      localStream=stream;
-      localStream.getTracks().forEach(track=>pc.addTrack(track,stream));
-    }).catch(err=>alert("Camera error: "+err.message));
+  .then(stream=>{
+    localStream = stream;
+    localVideo.srcObject = stream;
+    stream.getTracks().forEach(track=> pc.addTrack(track, stream));
+  });
 }
 
 function shareScreen(){
   navigator.mediaDevices.getDisplayMedia({video:true})
-    .then(stream=>{
-      localVideo.srcObject=stream;
-      localStream.getTracks().forEach(track=>pc.addTrack(track,stream));
-    }).catch(err=>alert("Screen share error: "+err.message));
+  .then(stream=>{
+    localStream = stream;
+    localVideo.srcObject = stream;
+    pc.getSenders().forEach(sender=>{
+      if(sender.track.kind==="video") sender.replaceTrack(stream.getVideoTracks()[0]);
+    });
+  });
 }
 
 function voiceOnly(){
   navigator.mediaDevices.getUserMedia({audio:true})
-    .then(stream=>{
-      localVideo.srcObject=null;
-      localStream=stream;
-      localStream.getTracks().forEach(track=>pc.addTrack(track,stream));
-    }).catch(err=>alert("Microphone error: "+err.message));
-}
-
-pc.ontrack=e=>{ remoteVideo.srcObject=e.streams[0]; };
-
-// Basic WebRTC setup
-function setupCall(){
-  const callDoc = db.collection("rooms").doc(roomId).collection("call").doc("signal");
-  const offerCandidates = callDoc.collection("offerCandidates");
-  const answerCandidates = callDoc.collection("answerCandidates");
-
-  pc.onicecandidate = event => {
-    if(event.candidate) offerCandidates.add(event.candidate.toJSON());
-  };
-
-  pc.onnegotiationneeded = async()=>{
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    await callDoc.set({offer});
-    callDoc.onSnapshot(snapshot=>{
-      const data=snapshot.data();
-      if(!pc.currentRemoteDescription && data?.answer){
-        pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-      }
-    });
-  };
-
-  answerCandidates.onSnapshot(snapshot=>{
-    snapshot.docChanges().forEach(change=>{
-      if(change.type==="added"){
-        const candidate=new RTCIceCandidate(change.doc.data());
-        pc.addIceCandidate(candidate);
-      }
+  .then(stream=>{
+    localStream = stream;
+    localVideo.srcObject = null;
+    pc.getSenders().forEach(sender=>{
+      if(sender.track.kind==="audio") sender.replaceTrack(stream.getAudioTracks()[0]);
     });
   });
 }
+
+// ========================
+// Create / Join Room
+// ========================
+async function createRoom(){
+  roomId = Math.floor(100000+Math.random()*900000).toString();
+  roomInput.value = roomId;
+  roomStatus.innerText = "Room Created: " + roomId;
+  
+  const roomRef = db.collection("rooms").doc(roomId);
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  await roomRef.set({offer: {type: offer.type, sdp: offer.sdp}});
+
+  roomRef.onSnapshot(async snapshot=>{
+    const data = snapshot.data();
+    if(!pc.currentRemoteDescription && data && data.answer){
+      const answer = new RTCSessionDescription(data.answer);
+      await pc.setRemoteDescription(answer);
+    }
+    if(data && data.candidates){
+      data.candidates.forEach(async c=>{
+        try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch{}
+      });
+    }
+  });
+
+  pc.onicecandidate = e=>{
+    if(!e.candidate) return;
+    roomRef.update({candidates: firebase.firestore.FieldValue.arrayUnion(e.candidate.toJSON())});
+  };
+}
+
+async function joinRoom(){
+  roomId = roomInput.value;
+  const roomRef = db.collection("rooms").doc(roomId);
+  const roomData = (await roomRef.get()).data();
+  roomStatus.innerText = "Joined Room: " + roomId;
+
+  await pc.setRemoteDescription(new RTCSessionDescription(roomData.offer));
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  await roomRef.update({answer: {type: answer.type, sdp: answer.sdp}});
+
+  roomRef.onSnapshot(snapshot=>{
+    const data = snapshot.data();
+    if(data && data.candidates){
+      data.candidates.forEach(async c=>{
+        try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch{}
+      });
+    }
+  });
+
+  pc.onicecandidate = e=>{
+    if(!e.candidate) return;
+    roomRef.update({candidates: firebase.firestore.FieldValue.arrayUnion(e.candidate.toJSON())});
+  };
+}
+
+// ========================
+// Remote video
+// ========================
+pc.ontrack = e=>{
+  remoteVideo.srcObject = e.streams[0];
+};
+
+// ========================
+// Chat
+// ========================
+function sendMessage(){
+  const msg = chatInput.value;
+  db.collection("rooms").doc(roomId).collection("chat").add({
+    text: msg,
+    time: Date.now()
+  });
+  chatInput.value = "";
+}
+
+function listenChat(){
+  db.collection("rooms").doc(roomId).collection("chat")
+    .orderBy("time")
+    .onSnapshot(snapshot=>{
+      chatBox.innerHTML = "";
+      snapshot.forEach(doc=>{
+        chatBox.innerHTML += "<p>"+doc.data().text+"</p>";
+      });
+    });
+}
+
+function typingStatus(){
+  db.collection("rooms").doc(roomId).set({typing:true},{merge:true});
+}
+
+db.collection("rooms").doc(roomId).onSnapshot(doc=>{
+  if(doc.data()?.typing){
+    typingIndicator.innerText="Friend is typing...";
+    setTimeout(()=>typingIndicator.innerText="",1000);
+  }
+});
+
+// ========================
+// Watch Together
+// ========================
+const moviePlayer = document.getElementById("moviePlayer");
+function loadMovie(e){
+  moviePlayer.src = URL.createObjectURL(e.target.files[0]);
+}
+
+moviePlayer.onplay = ()=>{
+  db.collection("rooms").doc(roomId).set({movie:"play", time:moviePlayer.currentTime},{merge:true});
+};
+moviePlayer.onpause = ()=>{
+  db.collection("rooms").doc(roomId).set({movie:"pause", time:moviePlayer.currentTime},{merge:true});
+};
+
+db.collection("rooms").doc(roomId).onSnapshot(doc=>{
+  const d = doc.data();
+  if(!d) return;
+  if(d.movie==="play"){ moviePlayer.currentTime = d.time; moviePlayer.play(); }
+  if(d.movie==="pause"){ moviePlayer.currentTime = d.time; moviePlayer.pause(); }
+});
+
+// Start chat listener
+listenChat();
 </script>
 </body>
   </html>
