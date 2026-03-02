@@ -1,70 +1,251 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>❤️ RedSync Ultimate</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <style>
-    body{
-      margin:0;
-      font-family: Arial, sans-serif;
-      background:#1a0000;
-      color:white;
-      text-align:center;
-    }
-    .box{
-      margin-top:60px;
-    }
-    input{
-      padding:10px;
-      margin:10px;
-      width:250px;
-      border-radius:6px;
-      border:none;
-    }
-    button{
-      padding:10px 20px;
-      margin:5px;
-      border:none;
-      border-radius:6px;
-      cursor:pointer;
-      font-weight:bold;
-    }
-    .primary{ background:#8b0000; color:white; }
-    .logout{ background:black; color:white; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RedSync Ultimate</title>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+<style>
+body{
+margin:0;
+font-family:Arial;
+background:linear-gradient(135deg,#1a0000,#330000);
+color:white;
+}
+
+header{
+background:#8b0000;
+padding:15px;
+text-align:center;
+font-size:22px;
+font-weight:bold;
+}
+
+.container{padding:20px;}
+
+.card{
+background:rgba(255,0,0,0.08);
+backdrop-filter:blur(15px);
+border:1px solid rgba(255,0,0,0.3);
+padding:20px;
+border-radius:15px;
+margin-bottom:20px;
+box-shadow:0 0 25px rgba(255,0,0,0.4);
+}
+
+button{
+padding:10px 15px;
+border:none;
+border-radius:8px;
+background:#cc0000;
+color:white;
+cursor:pointer;
+margin:5px 0;
+}
+
+input{
+padding:10px;
+border-radius:8px;
+border:none;
+margin:5px 0;
+}
+
+video{
+width:48%;
+background:black;
+border-radius:10px;
+}
+
+.video-area{
+display:flex;
+gap:10px;
+flex-wrap:wrap;
+}
+
+.chat-box{
+height:180px;
+overflow-y:auto;
+background:black;
+padding:10px;
+border-radius:10px;
+margin-bottom:10px;
+}
+
+.status{
+font-size:14px;
+color:#ff8080;
+}
+
+@media(max-width:768px){
+video{width:100%;}
+}
+</style>
 </head>
 
 <body>
 
-  <div class="box" id="authBox">
-    <h1>❤️ RedSync Authentication</h1>
+<header>❤️ RedSync ULTIMATE</header>
 
-    <input type="email" id="email" placeholder="Enter Email"><br>
-    <input type="password" id="password" placeholder="Enter Password"><br>
+<div class="container">
 
-    <button class="primary" id="signup">Sign Up</button>
-    <button class="primary" id="login">Login</button>
-  </div>
+<div class="card">
+<h3>🔐 Login</h3>
+<button onclick="googleLogin()">Login with Google</button>
+<p id="userInfo"></p>
+</div>
 
-  <div class="box" id="homeBox" style="display:none;">
-    <h1>🔥 Welcome to RedSync</h1>
-    <p id="userEmail"></p>
-    <button class="logout" id="logout">Logout</button>
-  </div>
+<div class="card">
+<h3>🏠 Room</h3>
+<button onclick="createRoom()">Create Room</button><br>
+<input id="roomInput" placeholder="Enter PIN">
+<input id="roomPass" placeholder="Room Password">
+<button onclick="joinRoom()">Join</button>
+<p id="roomStatus"></p>
+<p class="status" id="userCount"></p>
+</div>
 
-<script type="module">
+<div class="card">
+<h3>🎥 Video / Screen</h3>
+<div class="video-area">
+<video id="localVideo" autoplay playsinline muted></video>
+<video id="remoteVideo" autoplay playsinline></video>
+</div>
+<button onclick="startCamera()">Start Camera</button>
+<button onclick="shareScreen()">Share Screen</button>
+<button onclick="voiceOnly()">Voice Only</button>
+</div>
 
-// 🔥 Firebase Imports
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { 
-  getAuth, 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+<div class="card">
+<h3>💬 Chat</h3>
+<div class="chat-box" id="chatBox"></div>
+<input id="chatInput" placeholder="Type message" oninput="typingStatus()">
+<button onclick="sendMessage()">Send</button>
+<p class="status" id="typingIndicator"></p>
+</div>
 
-// 🔥 YOUR Firebase Config (Applied)
+<div class="card">
+<h3>🎬 Watch Together</h3>
+<video id="moviePlayer" controls></video>
+<input type="file" accept="video/*" onchange="loadMovie(event)">
+</div>
+
+</div>
+
+<script>
+// 🔥 PASTE FIREBASE CONFIG HERE
+const firebaseConfig = {
+apiKey: "PASTE",
+authDomain: "PASTE",
+projectId: "PASTE",
+storageBucket: "PASTE",
+messagingSenderId: "PASTE",
+appId: "PASTE"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth=firebase.auth();
+const db=firebase.firestore();
+
+let roomId;
+let currentUser;
+let pc=new RTCPeerConnection();
+let localStream;
+
+// GOOGLE LOGIN
+function googleLogin(){
+const provider=new firebase.auth.GoogleAuthProvider();
+auth.signInWithPopup(provider)
+.then(result=>{
+currentUser=result.user;
+userInfo.innerText="Logged in as: "+currentUser.displayName;
+});
+}
+
+// CAMERA
+function startCamera(){
+navigator.mediaDevices.getUserMedia({video:true,audio:true})
+.then(stream=>{
+localVideo.srcObject=stream;
+localStream=stream;
+stream.getTracks().forEach(track=>pc.addTrack(track,stream));
+});
+}
+
+// SCREEN SHARE
+function shareScreen(){
+navigator.mediaDevices.getDisplayMedia({video:true})
+.then(stream=>{
+localVideo.srcObject=stream;
+});
+}
+
+// VOICE ONLY
+function voiceOnly(){
+navigator.mediaDevices.getUserMedia({audio:true})
+.then(stream=>{
+localVideo.srcObject=null;
+localStream=stream;
+stream.getTracks().forEach(track=>pc.addTrack(track,stream));
+});
+}
+
+pc.ontrack=e=>{
+remoteVideo.srcObject=e.streams[0];
+};
+
+// CREATE ROOM
+function createRoom(){
+roomId=Math.floor(100000+Math.random()*900000).toString();
+roomInput.value=roomId;
+roomStatus.innerText="Room Created: "+roomId;
+}
+
+// JOIN ROOM
+function joinRoom(){
+roomId=roomInput.value;
+roomStatus.innerText="Joined: "+roomId;
+listenRoom();
+}
+
+// LISTEN ROOM
+function listenRoom(){
+db.collection("rooms").doc(roomId)
+.onSnapshot(doc=>{
+if(doc.exists){
+userCount.innerText="Users Online: 2";
+}
+});
+listenChat();
+listenMovieSync();
+}
+
+// CHAT
+function sendMessage(){
+const msg=chatInput.value;
+db.collection("rooms").doc(roomId)
+.collection("chat").add({
+text:currentUser.displayName+": "+msg,
+time:Date.now()
+});
+chatInput.value="";
+}
+
+function listenChat(){
+db.collection("rooms").doc(roomId)
+.collection("chat")
+.orderBy("time")
+.onSnapshot(snapshot=>{
+chatBox.innerHTML="";
+snapshot.forEach(doc=>{
+chatBox.innerHTML+="<p>"+doc.data().text+"</p>";
+});
+});
+}
+<script>
 const firebaseConfig = {
   apiKey: "AIzaSyD-M1qJ4NDkb9_CTNjCg9afEj-VyD1Nugs",
   authDomain: "red-sync-2f00e.firebaseapp.com",
@@ -74,59 +255,88 @@ const firebaseConfig = {
   appId: "1:449210595883:web:866765e6211dd21790086e"
 };
 
-// Initialize
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+firebase.initializeApp(firebaseConfig);
 
-// Elements
-const email = document.getElementById("email");
-const password = document.getElementById("password");
-const signupBtn = document.getElementById("signup");
-const loginBtn = document.getElementById("login");
-const logoutBtn = document.getElementById("logout");
+const auth = firebase.auth();
+const db = firebase.firestore();
 
-const authBox = document.getElementById("authBox");
-const homeBox = document.getElementById("homeBox");
-const userEmail = document.getElementById("userEmail");
+let roomId = null;
+let currentUser = null;
+let localStream = null;
+let pc = new RTCPeerConnection();
 
-// 🔥 Sign Up
-signupBtn.addEventListener("click", async () => {
-  try {
-    await createUserWithEmailAndPassword(auth, email.value, password.value);
-    alert("Account Created ✅");
-  } catch (error) {
-    alert(error.message);
+// GOOGLE LOGIN
+function googleLogin() {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider)
+    .then(result => {
+      currentUser = result.user;
+      document.getElementById("userInfo").innerText =
+        "Logged in as: " + currentUser.displayName;
+    })
+    .catch(error => alert(error.message));
+}
+
+// CREATE ROOM
+function createRoom() {
+  roomId = Math.floor(100000 + Math.random() * 900000).toString();
+  document.getElementById("roomInput").value = roomId;
+  document.getElementById("roomStatus").innerText =
+    "Room Created: " + roomId;
+
+  db.collection("rooms").doc(roomId).set({
+    createdAt: Date.now()
+  });
+}
+
+// JOIN ROOM
+function joinRoom() {
+  roomId = document.getElementById("roomInput").value;
+
+  if (!roomId) {
+    alert("Enter Room PIN");
+    return;
   }
-});
 
-// 🔥 Login
-loginBtn.addEventListener("click", async () => {
-  try {
-    await signInWithEmailAndPassword(auth, email.value, password.value);
-    alert("Login Successful 🔥");
-  } catch (error) {
-    alert(error.message);
-  }
-});
+  document.getElementById("roomStatus").innerText =
+    "Joined: " + roomId;
 
-// 🔥 Logout
-logoutBtn.addEventListener("click", async () => {
-  await signOut(auth);
-});
+  listenChat();
+}
 
-// 🔥 Detect Login State
-onAuthStateChanged(auth, (user) => {
-  if (user) {
-    authBox.style.display = "none";
-    homeBox.style.display = "block";
-    userEmail.innerText = "Logged in as: " + user.email;
-  } else {
-    authBox.style.display = "block";
-    homeBox.style.display = "none";
-  }
-});
+// CHAT SEND
+function sendMessage() {
+  if (!roomId || !currentUser) return;
 
+  const msg = document.getElementById("chatInput").value;
+
+  db.collection("rooms")
+    .doc(roomId)
+    .collection("chat")
+    .add({
+      text: currentUser.displayName + ": " + msg,
+      time: Date.now()
+    });
+
+  document.getElementById("chatInput").value = "";
+}
+
+// CHAT LISTENER
+function listenChat() {
+  db.collection("rooms")
+    .doc(roomId)
+    .collection("chat")
+    .orderBy("time")
+    .onSnapshot(snapshot => {
+      const chatBox = document.getElementById("chatBox");
+      chatBox.innerHTML = "";
+
+      snapshot.forEach(doc => {
+        chatBox.innerHTML +=
+          "<p>" + doc.data().text + "</p>";
+      });
+    });
+}
 </script>
-
 </body>
-</html>
+  </html>
