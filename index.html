@@ -1,301 +1,62 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RedSync Ultimate</title>
+  <title>RedSync Login</title>
+  <script type="module">
+    // Import Firebase
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    // Your Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyD-M1qJ4NDkb9_CTNjCg9afEj-VyD1Nugs",
+      authDomain: "red-sync-2f00e.firebaseapp.com",
+      projectId: "red-sync-2f00e",
+      storageBucket: "red-sync-2f00e.firebasestorage.app",
+      messagingSenderId: "449210595883",
+      appId: "1:449210595883:web:866765e6211dd21790086e"
+    };
 
-<style>
-body{
-margin:0;
-font-family:Arial;
-background:linear-gradient(135deg,#1a0000,#330000);
-color:white;
-}
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
 
-header{
-background:#8b0000;
-padding:15px;
-text-align:center;
-font-size:22px;
-font-weight:bold;
-}
+    window.signup = function () {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
 
-.container{padding:20px;}
+      createUserWithEmailAndPassword(auth, email, password)
+        .then(() => alert("Signup Successful 🎉"))
+        .catch(err => alert(err.message));
+    }
 
-.card{
-background:rgba(255,0,0,0.08);
-backdrop-filter:blur(15px);
-border:1px solid rgba(255,0,0,0.3);
-padding:20px;
-border-radius:15px;
-margin-bottom:20px;
-box-shadow:0 0 25px rgba(255,0,0,0.4);
-}
+    window.login = function () {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
 
-button{
-padding:10px 15px;
-border:none;
-border-radius:8px;
-background:#cc0000;
-color:white;
-cursor:pointer;
-margin:5px 0;
-}
+      signInWithEmailAndPassword(auth, email, password)
+        .then(() => alert("Login Successful ✅"))
+        .catch(err => alert(err.message));
+    }
 
-input{
-padding:10px;
-border-radius:8px;
-border:none;
-margin:5px 0;
-}
-
-video{
-width:48%;
-background:black;
-border-radius:10px;
-}
-
-.video-area{
-display:flex;
-gap:10px;
-flex-wrap:wrap;
-}
-
-.chat-box{
-height:180px;
-overflow-y:auto;
-background:black;
-padding:10px;
-border-radius:10px;
-margin-bottom:10px;
-}
-
-.status{
-font-size:14px;
-color:#ff8080;
-}
-
-@media(max-width:768px){
-video{width:100%;}
-}
-</style>
+    window.logout = function () {
+      signOut(auth).then(() => alert("Logged out"));
+    }
+  </script>
 </head>
 
-<body>
+<body style="font-family: Arial; text-align: center; margin-top: 50px;">
+  <h2>❤️ RedSync Authentication</h2>
 
-<header>❤️ RedSync ULTIMATE</header>
+  <input type="email" id="email" placeholder="Enter Email"><br><br>
+  <input type="password" id="password" placeholder="Enter Password"><br><br>
 
-<div class="container">
+  <button onclick="signup()">Sign Up</button>
+  <button onclick="login()">Login</button>
+  <button onclick="logout()">Logout</button>
 
-<div class="card">
-<h3>🔐 Login</h3>
-<button onclick="googleLogin()">Login with Google</button>
-<p id="userInfo"></p>
-</div>
-
-<div class="card">
-<h3>🏠 Room</h3>
-<button onclick="createRoom()">Create Room</button><br>
-<input id="roomInput" placeholder="Enter PIN">
-<input id="roomPass" placeholder="Room Password">
-<button onclick="joinRoom()">Join</button>
-<p id="roomStatus"></p>
-<p class="status" id="userCount"></p>
-</div>
-
-<div class="card">
-<h3>🎥 Video / Screen</h3>
-<div class="video-area">
-<video id="localVideo" autoplay playsinline muted></video>
-<video id="remoteVideo" autoplay playsinline></video>
-</div>
-<button onclick="startCamera()">Start Camera</button>
-<button onclick="shareScreen()">Share Screen</button>
-<button onclick="voiceOnly()">Voice Only</button>
-</div>
-
-<div class="card">
-<h3>💬 Chat</h3>
-<div class="chat-box" id="chatBox"></div>
-<input id="chatInput" placeholder="Type message" oninput="typingStatus()">
-<button onclick="sendMessage()">Send</button>
-<p class="status" id="typingIndicator"></p>
-</div>
-
-<div class="card">
-<h3>🎬 Watch Together</h3>
-<video id="moviePlayer" controls></video>
-<input type="file" accept="video/*" onchange="loadMovie(event)">
-</div>
-
-</div>
-
-<script>
-// 🔥 PASTE FIREBASE CONFIG HERE
-const firebaseConfig = {
-  apiKey: "AIzaSyD-M1qJ4NDkb9_CTNjCg9afEj-VyD1Nugs",
-  authDomain: "red-sync-2f00e.firebaseapp.com",
-  projectId: "red-sync-2f00e",
-  storageBucket: "red-sync-2f00e.firebasestorage.app",
-  messagingSenderId: "449210595883",
-  appId: "1:449210595883:web:866765e6211dd21790086e"
-};
-
-firebase.initializeApp(firebaseConfig);
-const auth=firebase.auth();
-const db=firebase.firestore();
-
-let roomId;
-let currentUser;
-let pc=new RTCPeerConnection();
-let localStream;
-
-// GOOGLE LOGIN
-function googleLogin(){
-const provider=new firebase.auth.GoogleAuthProvider();
-auth.signInWithPopup(provider)
-.then(result=>{
-currentUser=result.user;
-userInfo.innerText="Logged in as: "+currentUser.displayName;
-});
-}
-
-// CAMERA
-function startCamera(){
-navigator.mediaDevices.getUserMedia({video:true,audio:true})
-.then(stream=>{
-localVideo.srcObject=stream;
-localStream=stream;
-stream.getTracks().forEach(track=>pc.addTrack(track,stream));
-});
-}
-
-// SCREEN SHARE
-function shareScreen(){
-navigator.mediaDevices.getDisplayMedia({video:true})
-.then(stream=>{
-localVideo.srcObject=stream;
-});
-}
-
-// VOICE ONLY
-function voiceOnly(){
-navigator.mediaDevices.getUserMedia({audio:true})
-.then(stream=>{
-localVideo.srcObject=null;
-localStream=stream;
-stream.getTracks().forEach(track=>pc.addTrack(track,stream));
-});
-}
-
-pc.ontrack=e=>{
-remoteVideo.srcObject=e.streams[0];
-};
-
-// CREATE ROOM
-function createRoom(){
-roomId=Math.floor(100000+Math.random()*900000).toString();
-roomInput.value=roomId;
-roomStatus.innerText="Room Created: "+roomId;
-}
-
-// JOIN ROOM
-function joinRoom(){
-roomId=roomInput.value;
-roomStatus.innerText="Joined: "+roomId;
-listenRoom();
-}
-
-// LISTEN ROOM
-function listenRoom(){
-db.collection("rooms").doc(roomId)
-.onSnapshot(doc=>{
-if(doc.exists){
-userCount.innerText="Users Online: 2";
-}
-});
-listenChat();
-listenMovieSync();
-}
-
-// CHAT
-function sendMessage(){
-const msg=chatInput.value;
-db.collection("rooms").doc(roomId)
-.collection("chat").add({
-text:currentUser.displayName+": "+msg,
-time:Date.now()
-});
-chatInput.value="";
-}
-
-function listenChat(){
-db.collection("rooms").doc(roomId)
-.collection("chat")
-.orderBy("time")
-.onSnapshot(snapshot=>{
-chatBox.innerHTML="";
-snapshot.forEach(doc=>{
-chatBox.innerHTML+="<p>"+doc.data().text+"</p>";
-});
-});
-}
-
-// TYPING
-function typingStatus(){
-db.collection("rooms").doc(roomId).set({
-typing:true
-},{merge:true});
-}
-
-db.collection("rooms").doc(roomId)
-.onSnapshot(doc=>{
-if(doc.data()?.typing){
-typingIndicator.innerText="Friend is typing...";
-setTimeout(()=>typingIndicator.innerText="",1000);
-}
-});
-
-// MOVIE
-function loadMovie(e){
-moviePlayer.src=URL.createObjectURL(e.target.files[0]);
-}
-
-moviePlayer.onplay=()=>{
-db.collection("rooms").doc(roomId).set({
-movie:"play",
-time:moviePlayer.currentTime
-},{merge:true});
-};
-
-moviePlayer.onpause=()=>{
-db.collection("rooms").doc(roomId).set({
-movie:"pause",
-time:moviePlayer.currentTime
-},{merge:true});
-};
-
-function listenMovieSync(){
-db.collection("rooms").doc(roomId)
-.onSnapshot(doc=>{
-const d=doc.data();
-if(!d) return;
-if(d.movie==="play"){
-moviePlayer.currentTime=d.time;
-moviePlayer.play();
-}
-if(d.movie==="pause"){
-moviePlayer.currentTime=d.time;
-moviePlayer.pause();
-}
-});
-}
-
-</script>
+  <p style="margin-top: 20px; font-size: 14px; color: gray;">
+    After logging in, we’ll add your dashboard next 💻
+  </p>
 </body>
 </html>
