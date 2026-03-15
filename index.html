@@ -1,310 +1,150 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RedSync Ultimate</title>
-
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<title>Sorry Pihu</title>
 
 <style>
 body{
-  margin:0;
-  font-family:Arial;
-  background:linear-gradient(135deg,#1a0000,#330000);
-  color:white;
+    margin:0;
+    font-family: Arial, sans-serif;
+    text-align:center;
+    background: linear-gradient(135deg,#a8edea,#fed6e3);
+    overflow:hidden;
 }
-header{
-  background:#8b0000;
-  padding:15px;
-  text-align:center;
-  font-size:22px;
-  font-weight:bold;
+
+h1{
+    margin-top:90px;
+    font-size:40px;
 }
-.container{padding:20px;}
-.card{
-  background:rgba(255,0,0,0.08);
-  backdrop-filter:blur(15px);
-  border:1px solid rgba(255,0,0,0.3);
-  padding:20px;
-  border-radius:15px;
-  margin-bottom:20px;
-  box-shadow:0 0 25px rgba(255,0,0,0.4);
+
+#text{
+    font-size:22px;
+    margin-top:20px;
+    padding:20px;
+    min-height:60px;
 }
+
 button{
-  padding:10px 15px;
-  border:none;
-  border-radius:8px;
-  background:#cc0000;
-  color:white;
-  cursor:pointer;
-  margin:5px 0;
+    padding:12px 25px;
+    font-size:18px;
+    border:none;
+    border-radius:20px;
+    cursor:pointer;
+    margin:20px;
 }
-input{
-  padding:10px;
-  border-radius:8px;
-  border:none;
-  margin:5px 0;
+
+#yes{
+    background:#4CAF50;
+    color:white;
 }
-video{
-  width:48%;
-  background:black;
-  border-radius:10px;
+
+#no{
+    background:#ff4b5c;
+    color:white;
+    position:absolute;
 }
-.video-area{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
+
+.heart,.choco{
+    position:fixed;
+    bottom:-20px;
+    animation: float 5s linear infinite;
 }
-.chat-box{
-  height:180px;
-  overflow-y:auto;
-  background:black;
-  padding:10px;
-  border-radius:10px;
-  margin-bottom:10px;
+
+@keyframes float{
+    0%{transform:translateY(0);opacity:1;}
+    100%{transform:translateY(-110vh);opacity:0;}
 }
-.status{
-  font-size:14px;
-  color:#ff8080;
-}
-@media(max-width:768px){
-  video{width:100%;}
+
+#puppy{
+    display:none;
+    margin-top:20px;
 }
 </style>
 </head>
 
 <body>
-<header>❤️ RedSync ULTIMATE</header>
 
-<div class="container">
+<h1>Hey Pihu 🙂</h1>
 
-<div class="card">
-<h3>🏠 Room</h3>
-<button onclick="createRoom()">Create Room</button><br>
-<input id="roomInput" placeholder="Enter PIN">
-<button onclick="joinRoom()">Join Room</button>
-<p id="roomStatus"></p>
-<p class="status" id="userCount"></p>
-</div>
+<p id="text"></p>
 
-<div class="card">
-<h3>🎥 Video / Screen</h3>
-<div class="video-area">
-<video id="localVideo" autoplay playsinline muted></video>
-<video id="remoteVideo" autoplay playsinline></video>
-</div>
-<button onclick="startCamera()">Start Camera</button>
-<button onclick="shareScreen()">Share Screen (Desktop Only)</button>
-<button onclick="voiceOnly()">Voice Only</button>
-</div>
+<img id="puppy" src="https://media.giphy.com/media/26BRv0ThflsHCqDrG/giphy.gif" width="200">
 
-<div class="card">
-<h3>💬 Chat</h3>
-<div class="chat-box" id="chatBox"></div>
-<input id="chatInput" placeholder="Type message" oninput="typingStatus()">
-<button onclick="sendMessage()">Send</button>
-<p class="status" id="typingIndicator"></p>
-</div>
-
-<div class="card">
-<h3>🎬 Watch Together</h3>
-<video id="moviePlayer" controls></video>
-<input type="file" accept="video/*" onchange="loadMovie(event)">
-</div>
-
+<div>
+<button id="yes" onclick="forgive()">It's okay 👍</button>
+<button id="no">No 😒</button>
 </div>
 
 <script>
-// ========================
-// Firebase Config
-// ========================
-const firebaseConfig = {
-  apiKey: "AIzaSyD-M1qJ4NDkb9_CTNjCg9afEj-VyD1Nugs",
-  authDomain: "red-sync-2f00e.firebaseapp.com",
-  projectId: "red-sync-2f00e",
-  storageBucket: "red-sync-2f00e.firebasestorage.app",
-  messagingSenderId: "449210595883",
-  appId: "1:449210595883:web:866765e6211dd21790086e"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
 
-// ========================
-// WebRTC Setup
-// ========================
-let roomId;
-let localStream;
-let pc = new RTCPeerConnection({
-  iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "turn:turn.anyfirewall.com:443?transport=tcp", username: "webrtc", credential: "webrtc" }
-  ]
+let message = "If 'sorry' could come with chocolates and a puppy, I’d send both right now 🐶🍫 But for now… I’m really really sorry.";
+
+let i=0;
+
+function typing(){
+    if(i < message.length){
+        document.getElementById("text").innerHTML += message.charAt(i);
+        i++;
+        setTimeout(typing,40);
+    } else {
+        document.getElementById("puppy").style.display="block";
+    }
+}
+
+typing();
+
+function forgive(){
+
+document.body.innerHTML = "<h1 style='margin-top:150px'>Thanks Pihu 🙂</h1><p>You just made my day better!</p>";
+
+for(let i=0;i<150;i++){
+let conf=document.createElement("div");
+conf.innerHTML="🎉";
+conf.style.position="fixed";
+conf.style.left=Math.random()*100+"vw";
+conf.style.top=Math.random()*100+"vh";
+conf.style.fontSize="25px";
+document.body.appendChild(conf);
+}
+
+}
+
+let noBtn=document.getElementById("no");
+
+noBtn.addEventListener("mouseover",function(){
+let x=Math.random()*window.innerWidth;
+let y=Math.random()*window.innerHeight;
+
+noBtn.style.left=x+"px";
+noBtn.style.top=y+"px";
 });
 
-const localVideo = document.getElementById("localVideo");
-const remoteVideo = document.getElementById("remoteVideo");
-const chatBox = document.getElementById("chatBox");
-const chatInput = document.getElementById("chatInput");
-const typingIndicator = document.getElementById("typingIndicator");
-
-// ========================
-// Camera / Screen / Voice
-// ========================
-function startCamera(){
-  navigator.mediaDevices.getUserMedia({video:true,audio:true})
-  .then(stream=>{
-    localStream = stream;
-    localVideo.srcObject = stream;
-    stream.getTracks().forEach(track=> pc.addTrack(track, stream));
-  });
+function createHeart(){
+let heart=document.createElement("div");
+heart.className="heart";
+heart.innerHTML="💖";
+heart.style.left=Math.random()*100+"vw";
+heart.style.fontSize=(15+Math.random()*20)+"px";
+heart.style.animationDuration=(3+Math.random()*3)+"s";
+document.body.appendChild(heart);
+setTimeout(()=>{heart.remove();},5000);
 }
 
-function shareScreen(){
-  if(navigator.mediaDevices.getDisplayMedia){
-    navigator.mediaDevices.getDisplayMedia({video:true})
-    .then(stream=>{
-      localStream = stream;
-      localVideo.srcObject = stream;
-      pc.getSenders().forEach(sender=>{
-        if(sender.track.kind==="video") sender.replaceTrack(stream.getVideoTracks()[0]);
-      });
-    }).catch(e=>alert("Screenshare works on desktop only"));
-  }else{
-    alert("Screenshare not supported on mobile");
-  }
+function createChocolate(){
+let choco=document.createElement("div");
+choco.className="choco";
+choco.innerHTML="🍫";
+choco.style.left=Math.random()*100+"vw";
+choco.style.fontSize="20px";
+choco.style.animationDuration=(3+Math.random()*3)+"s";
+document.body.appendChild(choco);
+setTimeout(()=>{choco.remove();},5000);
 }
 
-function voiceOnly(){
-  navigator.mediaDevices.getUserMedia({audio:true})
-  .then(stream=>{
-    localStream = stream;
-    localVideo.srcObject = null;
-    pc.getSenders().forEach(sender=>{
-      if(sender.track.kind==="audio") sender.replaceTrack(stream.getAudioTracks()[0]);
-    });
-  });
-}
+setInterval(createHeart,400);
+setInterval(createChocolate,800);
 
-// Receive remote track
-pc.ontrack = e => {
-  remoteVideo.srcObject = e.streams[0];
-};
-
-// ========================
-// Rooms & Chat
-// ========================
-function createRoom(){
-  roomId = Math.floor(100000 + Math.random()*900000).toString();
-  roomInput.value = roomId;
-  roomStatus.innerText = "Room Created: " + roomId;
-  setupRoom(roomId, true);
-}
-
-function joinRoom(){
-  roomId = roomInput.value;
-  roomStatus.innerText = "Joined Room: " + roomId;
-  setupRoom(roomId, false);
-}
-
-async function setupRoom(id, isCreator){
-  const roomRef = db.collection("rooms").doc(id);
-
-  pc.onicecandidate = e=>{
-    if(!e.candidate) return;
-    roomRef.update({candidates: firebase.firestore.FieldValue.arrayUnion(e.candidate.toJSON())});
-  };
-
-  if(isCreator){
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    await roomRef.set({offer: {type: offer.type, sdp: offer.sdp}, candidates: []});
-  } else {
-    const roomSnapshot = await roomRef.get();
-    const roomData = roomSnapshot.data();
-    await pc.setRemoteDescription(new RTCSessionDescription(roomData.offer));
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    roomRef.update({answer: {type: answer.type, sdp: answer.sdp}});
-    if(roomData.candidates) {
-      roomData.candidates.forEach(async c=>{
-        await pc.addIceCandidate(new RTCIceCandidate(c));
-      });
-    }
-  }
-
-  roomRef.onSnapshot(snapshot=>{
-    const data = snapshot.data();
-    if(!data) return;
-    if(data.answer && isCreator && !pc.currentRemoteDescription){
-      pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-    }
-    if(data.candidates){
-      data.candidates.forEach(async c=>{
-        await pc.addIceCandidate(new RTCIceCandidate(c));
-      });
-    }
-    if(data.typing){
-      typingIndicator.innerText = "Friend is typing...";
-      setTimeout(()=>typingIndicator.innerText="",1000);
-    }
-    if(data.movie){
-      if(data.movie.action==="play"){
-        moviePlayer.currentTime = data.movie.time;
-        moviePlayer.play();
-      }
-      if(data.movie.action==="pause"){
-        moviePlayer.currentTime = data.movie.time;
-        moviePlayer.pause();
-      }
-    }
-  });
-
-  listenChat();
-}
-
-function sendMessage(){
-  if(!chatInput.value) return;
-  db.collection("rooms").doc(roomId)
-  .collection("chat").add({
-    text: chatInput.value,
-    time: Date.now()
-  });
-  chatInput.value="";
-}
-
-function listenChat(){
-  db.collection("rooms").doc(roomId)
-  .collection("chat")
-  .orderBy("time")
-  .onSnapshot(snapshot=>{
-    chatBox.innerHTML="";
-    snapshot.forEach(doc=>{
-      chatBox.innerHTML += "<p>"+doc.data().text+"</p>";
-    });
-  });
-}
-
-function typingStatus(){
-  db.collection("rooms").doc(roomId).set({typing:true},{merge:true});
-}
-
-// ========================
-// Watch Together
-// ========================
-const moviePlayer = document.getElementById("moviePlayer");
-function loadMovie(e){
-  moviePlayer.src = URL.createObjectURL(e.target.files[0]);
-  db.collection("rooms").doc(roomId).set({movie:{action:"load", time:0}},{merge:true});
-}
-
-moviePlayer.onplay = ()=>{
-  db.collection("rooms").doc(roomId).set({movie:{action:"play", time:moviePlayer.currentTime}},{merge:true});
-};
-moviePlayer.onpause = ()=>{
-  db.collection("rooms").doc(roomId).set({movie:{action:"pause", time:moviePlayer.currentTime}},{merge:true});
-};
 </script>
+
 </body>
-  </html>
+</html>
